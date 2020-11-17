@@ -4,8 +4,9 @@
 #include <QFileSystemWatcher>
 #include <QDir>
 #include <QSet>
+#include <QMap>
 #include <QDirIterator>
-
+#include <QVector>
 
 class DirWatcher : public QObject
 {
@@ -23,9 +24,12 @@ private slots:
     void hFileChanged(const QString&);
 
 private:
+    quint64 m_rbSize;
+    QByteArray m_ringBuffer[10];
     QFileSystemWatcher m_watcher;
     QDir m_root;
     QSet<QString> m_directories;
+    QMap<QString, QSet<QString>> m_abspaths;
     QString m_lastKey;
 
 };

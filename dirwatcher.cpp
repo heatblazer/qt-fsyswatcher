@@ -1,8 +1,29 @@
 #include "dirwatcher.h"
 #include <iostream>
 
+namespace
+{
+
+    void split(const char* str, const char* delim, std::vector<std::string>& out)
+    {
+        const char* begin = str;
+        const char* it = strstr(str, delim);
+        if (it != NULL)
+        {
+            std::string data{begin, it};
+            out.push_back(data);
+            it++;
+            split(it, delim, out);
+        } else {
+            std::string data{str};
+            out.push_back(data);
+        }
+    }
+}
+
+
 DirWatcher::DirWatcher(const QString &root, QObject* parent):
-    QObject(parent), m_root(root)
+    QObject(parent), m_root(root), m_rbSize{10}
 {
 
     m_watcher.addPath(root);
@@ -13,7 +34,6 @@ DirWatcher::DirWatcher(const QString &root, QObject* parent):
 
     QObject::connect(&m_watcher, SIGNAL(fileChanged(const QString&)),
                                         this, SLOT(hFileChanged(const QString&)));
-
 
 
 }
@@ -39,7 +59,7 @@ void DirWatcher::hDirChanged(const QString &path)
 
     }
 
-
+#if 0 //delete directories when count reaches...
     if (m_directories.count() > DirWatcher::sMaxCount) {
         QSetIterator<QString> setit(m_directories);
         while (setit.hasNext()) {
@@ -52,10 +72,14 @@ void DirWatcher::hDirChanged(const QString &path)
         m_directories.clear();
         m_directories << m_lastKey;
     }
+#endif
     std::cout << "##############################################\r\n";
     QSetIterator<QString> setit(m_directories);
     while (setit.hasNext()) {
         QString d = setit.next();
+        if (d.contains(".tlf")) {
+            m_watcher.addPath(d);
+        }
         std::cout << d.toStdString() << std::endl;
     }
 }
@@ -63,9 +87,21 @@ void DirWatcher::hDirChanged(const QString &path)
 
 void DirWatcher::hFileChanged(const QString& file)
 {
-#if 0
-    for (auto dir : m_root.entryList()) {
-        std::cout << dir.toStdString() << std::endl;
+    static size_t cnt = 0;
+    QFile f{file};
+    if (f.open(QFile::ReadOnly)) {
+        quint64 s = f.size();
+        s /= 4;
+        f.seek(f.size()-s);
+        while (!f.atEnd()) {
+            QByteArray data = f.readLine();
+            m_ringBuffer[cnt++ % m_rbSize]=data;
+        }
     }
-#endif
+
+    std::cout << "----------------- B E G I N ----------------------\r\n";
+    for(auto i : m_ringBuffer) {
+        std::cout << "~~~~~~\r\n";
+        std::cout << i.toStdString().c_str() << "\r\n";
+    }
 }
